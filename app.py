@@ -8,6 +8,7 @@ import urllib.parse
 
 st.set_page_config(page_title="Lead Finder Pro", layout="wide", page_icon="🎯")
 
+# Custom Styling
 st.markdown("""
     <style>
     .stMetric {
@@ -60,6 +61,9 @@ def get_last_logs(n_lines=5):
             return "Error reading log file."
     return "No log file found."
 
+# ---------------------------------------------------------
+# SIDEBAR
+# ---------------------------------------------------------
 st.sidebar.title("🎯 Lead Finder Pro")
 
 if is_worker_running():
@@ -82,6 +86,9 @@ if st.sidebar.button("🔄 Refresh"):
 cities = load_json(CITIES_PATH, ["Maasmechelen"])
 niches = load_json(NICHES_PATH, ["carpenter"])
 
+# ---------------------------------------------------------
+# PAGE 1: ACTIVE LEADS DATABASE
+# ---------------------------------------------------------
 if page_selection == "📊 Leads Database":
     st.title("🎯 B2B Lead Intelligence Dashboard")
     st.caption("Review leads on Google Maps and manually record ratings, review counts, and opportunity scores.")
@@ -109,6 +116,7 @@ if page_selection == "📊 Leads Database":
             axis=1
         )
 
+        # KPI METRICS
         kpi1, kpi2, kpi3, kpi4 = st.columns(4)
         total_leads = len(df)
         to_call = len(df[df["gebeld"] == False])
@@ -122,6 +130,7 @@ if page_selection == "📊 Leads Database":
 
         st.markdown("---")
 
+        # FILTERING
         f_col1, f_col2, f_col3 = st.columns(3)
         
         with f_col1:
@@ -155,6 +164,7 @@ if page_selection == "📊 Leads Database":
 
         st.write(f"Displayed leads: **{len(filtered_df)}**")
 
+        # DATA EDITOR
         edited_df = st.data_editor(
             filtered_df,
             column_order=[
@@ -244,6 +254,9 @@ if page_selection == "📊 Leads Database":
             mime="text/csv"
         )
 
+# ---------------------------------------------------------
+# PAGE 2: ARCHIVED / CLOSED
+# ---------------------------------------------------------
 elif page_selection == "🗑️ Closed / Archived":
     st.title("🗑️ Archived & Closed Leads")
     st.caption("Manage archived leads and filter by online presence or closure status.")
@@ -313,12 +326,16 @@ elif page_selection == "🗑️ Closed / Archived":
             st.success("Archive updated successfully!")
             st.rerun()
 
+# ---------------------------------------------------------
+# PAGE 3: SETTINGS
+# ---------------------------------------------------------
 elif page_selection == "⚙️ Niches & Cities":
     st.title("⚙️ Search Configuration")
     col1, col2 = st.columns(2)
 
     with col1:
         st.subheader("📍 Target Cities")
+        
         new_city = st.text_input("Add new city:")
         if st.button("➕ Add City"):
             if new_city.strip():
@@ -329,10 +346,20 @@ elif page_selection == "⚙️ Niches & Cities":
                     st.success(f"City '{formatted_city}' added!")
                     st.rerun()
 
-        st.write(", ".join(cities))
+        st.markdown("---")
+        
+        st.write("**Current Cities:**")
+        cities_to_remove = st.multiselect("Select cities to remove:", options=cities, key="remove_cities")
+        if st.button("🗑️ Remove Selected Cities"):
+            if cities_to_remove:
+                updated_cities = [c for c in cities if c not in cities_to_remove]
+                save_json(CITIES_PATH, updated_cities)
+                st.success("Selected cities removed!")
+                st.rerun()
 
     with col2:
         st.subheader("🛠️ Target Niches (OSM Tags)")
+        
         new_niche = st.text_input("Add new niche:")
         if st.button("➕ Add Niche"):
             if new_niche.strip():
@@ -343,4 +370,13 @@ elif page_selection == "⚙️ Niches & Cities":
                     st.success(f"Niche '{formatted_niche}' added!")
                     st.rerun()
 
-        st.write(", ".join(niches))
+        st.markdown("---")
+        
+        st.write("**Current Niches:**")
+        niches_to_remove = st.multiselect("Select niches to remove:", options=niches, key="remove_niches")
+        if st.button("🗑️ Remove Selected Niches"):
+            if niches_to_remove:
+                updated_niches = [n for n in niches if n not in niches_to_remove]
+                save_json(NICHES_PATH, updated_niches)
+                st.success("Selected niches removed!")
+                st.rerun()
