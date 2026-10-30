@@ -1,4 +1,5 @@
 🎯 B2B Lead Finder Pro
+
 An autonomous, self-hosted B2B lead discovery and enrichment web application designed for Raspberry Pi. Built using Python, Streamlit, OpenStreetMap (Overpass API), DuckDuckGo Search, and SQLite.
 
 This tool automatically scans local regions for businesses operating without dedicated websites, provides direct Google Maps integration for manual review/enrichment, and offers a clean Streamlit UI for outreach tracking and status archiving—all with zero paid API fees.
