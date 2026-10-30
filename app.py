@@ -8,7 +8,6 @@ import urllib.parse
 
 st.set_page_config(page_title="Lead Finder Pro", layout="wide", page_icon="🎯")
 
-# Custom Styling
 st.markdown("""
     <style>
     .stMetric {
@@ -58,49 +57,42 @@ def get_last_logs(n_lines=5):
                 lines = f.readlines()
                 return "".join(lines[-n_lines:])
         except Exception:
-            return "Fout bij uitlezen logbestand."
-    return "Geen logbestand gevonden."
+            return "Error reading log file."
+    return "No log file found."
 
-# ---------------------------------------------------------
-# SIDEBAR
-# ---------------------------------------------------------
 st.sidebar.title("🎯 Lead Finder Pro")
 
 if is_worker_running():
-    st.sidebar.success("🟢 **Worker:** Actief")
+    st.sidebar.success("🟢 **Worker:** Active")
 else:
-    st.sidebar.error("🔴 **Worker:** Gestopt")
+    st.sidebar.error("🔴 **Worker:** Stopped")
 
 page_selection = st.sidebar.radio(
-    "Menu",
-    ["📊 Leads Database", "🗑️ Gesloten / Verwijderd", "⚙️ Niches & Steden"]
+    "Navigation",
+    ["📊 Leads Database", "🗑️ Closed / Archived", "⚙️ Niches & Cities"]
 )
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("📄 Live Activity")
 st.sidebar.code(get_last_logs(5), language="text")
 
-if st.sidebar.button("🔄 Ververs"):
+if st.sidebar.button("🔄 Refresh"):
     st.rerun()
 
 cities = load_json(CITIES_PATH, ["Maasmechelen"])
 niches = load_json(NICHES_PATH, ["carpenter"])
 
-# ---------------------------------------------------------
-# PAGINA 1: ACTIEVE LEADS DATABASE
-# ---------------------------------------------------------
 if page_selection == "📊 Leads Database":
     st.title("🎯 B2B Lead Intelligence Dashboard")
-    st.caption("Bekijk de Google Maps pagina van elke lead en vul handmatig je score, reviews, sterren en online aanwezigheid in.")
+    st.caption("Review leads on Google Maps and manually record ratings, review counts, and opportunity scores.")
 
     conn = get_db_connection()
     df = pd.read_sql_query("SELECT * FROM leads WHERE is_deleted = 0 OR is_deleted IS NULL ORDER BY eigen_score DESC, id DESC", conn)
     conn.close()
 
     if df.empty:
-        st.info("Geen actieve leads gevonden in de database.")
+        st.info("No active leads found in the database.")
     else:
-        # Defaults voor kolommen
         defaults = {
             "gebeld": 0, "call_result": "-", "notes": "",
             "maps_url": "", "sterren": 0.0, "aantal_reviews": 0, "eigen_score": 50, "is_deleted": 0, "online_presence": "-"
@@ -112,62 +104,57 @@ if page_selection == "📊 Leads Database":
         df["gebeld"] = df["gebeld"].astype(bool)
         df["is_deleted"] = df["is_deleted"].astype(bool)
 
-        # Maps URLs genereren indien leeg
         df["maps_url"] = df.apply(
             lambda r: r["maps_url"] if r["maps_url"] else f"https://www.google.com/maps/search/?api=1&query={urllib.parse.quote(str(r['naam']) + ' ' + str(r['stad']))}", 
             axis=1
         )
 
-        # KPI METRIC CARDS
         kpi1, kpi2, kpi3, kpi4 = st.columns(4)
         total_leads = len(df)
         to_call = len(df[df["gebeld"] == False])
         hot_leads = len(df[df["eigen_score"] >= 70])
         deals = len(df[df["call_result"].str.contains("Deal", na=False)])
 
-        kpi1.metric("Totaal Leads", total_leads)
-        kpi2.metric("Nog te Bellen", to_call)
-        kpi3.metric("🔥 Hot Leads (Score 70+)", hot_leads)
-        kpi4.metric("✔️ Deals Gesloten", deals)
+        kpi1.metric("Total Leads", total_leads)
+        kpi2.metric("Pending Calls", to_call)
+        kpi3.metric("🔥 Hot Leads (70+)", hot_leads)
+        kpi4.metric("✔️ Deals Closed", deals)
 
         st.markdown("---")
 
-        # FILTERING: STAD, NICHE & STATUS
         f_col1, f_col2, f_col3 = st.columns(3)
         
         with f_col1:
-            all_cities = ["Alle Steden"] + sorted(list(set(df["stad"].dropna().tolist())))
-            selected_city = st.selectbox("📍 Filter op Stad:", all_cities)
+            all_cities = ["All Cities"] + sorted(list(set(df["stad"].dropna().tolist())))
+            selected_city = st.selectbox("📍 Filter by City:", all_cities)
 
         with f_col2:
-            all_niches = ["Alle Niches"] + sorted(list(set(df["niche"].dropna().tolist())))
-            selected_niche = st.selectbox("🛠️ Filter op Niche:", all_niches)
+            all_niches = ["All Niches"] + sorted(list(set(df["niche"].dropna().tolist())))
+            selected_niche = st.selectbox("🛠️ Filter by Niche:", all_niches)
 
         with f_col3:
             status_filter = st.selectbox(
                 "📞 Call Status Filter:",
-                ["Alles", "Alleen Nog Te Bellen", "✔️ Deals", "❌ Geen interesse", "➖ Niet opgenomen"]
+                ["All", "Pending Calls Only", "✔️ Deals", "❌ No Interest", "➖ No Answer"]
             )
 
-        # Filters toepassen
         filtered_df = df.copy()
-        if selected_city != "Alle Steden":
+        if selected_city != "All Cities":
             filtered_df = filtered_df[filtered_df["stad"] == selected_city]
-        if selected_niche != "Alle Niches":
+        if selected_niche != "All Niches":
             filtered_df = filtered_df[filtered_df["niche"] == selected_niche]
 
-        if status_filter == "Alleen Nog Te Bellen":
+        if status_filter == "Pending Calls Only":
             filtered_df = filtered_df[filtered_df["gebeld"] == False]
         elif status_filter == "✔️ Deals":
             filtered_df = filtered_df[filtered_df["call_result"].str.contains("Deal", na=False)]
-        elif status_filter == "❌ Geen interesse":
-            filtered_df = filtered_df[filtered_df["call_result"].str.contains("Geen interesse", na=False)]
-        elif status_filter == "➖ Niet opgenomen":
-            filtered_df = filtered_df[filtered_df["call_result"].str.contains("Niet opgenomen", na=False)]
+        elif status_filter == "❌ No Interest":
+            filtered_df = filtered_df[filtered_df["call_result"].str.contains("No interest", na=False)]
+        elif status_filter == "➖ No Answer":
+            filtered_df = filtered_df[filtered_df["call_result"].str.contains("No answer", na=False)]
 
-        st.write(f"Getoonde leads: **{len(filtered_df)}**")
+        st.write(f"Displayed leads: **{len(filtered_df)}**")
 
-        # INTERACTIEVE TABEL
         edited_df = st.data_editor(
             filtered_df,
             column_order=[
@@ -177,35 +164,35 @@ if page_selection == "📊 Leads Database":
             ],
             column_config={
                 "is_deleted": st.column_config.CheckboxColumn(
-                    "❌ Verwijder?",
-                    help="Vink aan om deze lead direct te verplaatsen naar het archief",
+                    "❌ Archive?",
+                    help="Check to move this lead to the archive",
                     default=False
                 ),
                 "online_presence": st.column_config.SelectboxColumn(
-                    "Aanwezigheid / Status",
-                    help="Geef de online aanwezigheid of sluitingsstatus op",
+                    "Online Presence / Status",
+                    help="Set online presence or business operating status",
                     options=[
                         "-",
-                        "❌ Geen van beide",
-                        "🌐 Wel website, geen profiel",
-                        "👤 Wel profiel, geen website",
-                        "✔️ Beide aanwezig",
-                        "⏳ Tijdelijk gesloten",
-                        "⛔ Permanent gesloten"
+                        "❌ Neither Website nor Profile",
+                        "🌐 Has Website, No Social Profile",
+                        "👤 Has Profile, No Website",
+                        "✔️ Both Present",
+                        "⏳ Temporarily Closed",
+                        "⛔ Permanently Closed"
                     ]
                 ),
-                "naam": st.column_config.TextColumn("Bedrijfsnaam", disabled=True),
-                "stad": st.column_config.TextColumn("Stad", disabled=True),
+                "naam": st.column_config.TextColumn("Company Name", disabled=True),
+                "stad": st.column_config.TextColumn("City", disabled=True),
                 "niche": st.column_config.TextColumn("Niche", disabled=True),
-                "telefoon": st.column_config.TextColumn("Telefoon", disabled=True),
+                "telefoon": st.column_config.TextColumn("Phone", disabled=True),
                 "eigen_score": st.column_config.NumberColumn(
-                    "Mijn Score",
+                    "Score (0-100)",
                     min_value=0,
                     max_value=100,
                     step=5
                 ),
                 "sterren": st.column_config.NumberColumn(
-                    "Sterren",
+                    "Rating",
                     min_value=0.0,
                     max_value=5.0,
                     step=0.1,
@@ -218,14 +205,14 @@ if page_selection == "📊 Leads Database":
                 ),
                 "maps_url": st.column_config.LinkColumn(
                     "📍 Maps",
-                    display_text="Open in Maps"
+                    display_text="Open Maps"
                 ),
-                "gebeld": st.column_config.CheckboxColumn("Gebeld?"),
+                "gebeld": st.column_config.CheckboxColumn("Called?"),
                 "call_result": st.column_config.SelectboxColumn(
                     "Call Status",
-                    options=["-", "✔️ Deal / Interesses", "❌ Geen interesse", "➖ Niet opgenomen / Terugbellen"]
+                    options=["-", "✔️ Deal / Interest", "❌ No interest", "➖ No answer / Callback"]
                 ),
-                "notes": st.column_config.TextColumn("Opmerkingen")
+                "notes": st.column_config.TextColumn("Notes")
             },
             disabled=["id", "naam", "stad", "niche", "telefoon", "adres", "status", "gecheckt_op", "maps_url"],
             hide_index=True,
@@ -233,7 +220,7 @@ if page_selection == "📊 Leads Database":
             key="leads_editor"
         )
 
-        if st.button("💾 Wijzigingen Opslaan"):
+        if st.button("💾 Save Changes"):
             conn = get_db_connection()
             cursor = conn.cursor()
             for idx, row in edited_df.iterrows():
@@ -246,68 +233,64 @@ if page_selection == "📊 Leads Database":
                 """, (gebeld_val, row["call_result"], row["notes"], row["sterren"], row["aantal_reviews"], row["eigen_score"], deleted_val, row["online_presence"], row["id"]))
             conn.commit()
             conn.close()
-            st.success("Wijzigingen opgeslagen!")
+            st.success("Changes saved successfully!")
             st.rerun()
 
         csv = edited_df.to_csv(index=False).encode('utf-8')
         st.download_button(
-            label="📥 Exporteer Selectie naar CSV",
+            label="📥 Export Selection to CSV",
             data=csv,
             file_name="leads_export.csv",
             mime="text/csv"
         )
 
-# ---------------------------------------------------------
-# PAGINA 2: GESLOTEN / VERWIJDERD ARCHIEF
-# ---------------------------------------------------------
-elif page_selection == "🗑️ Gesloten / Verwijderd":
-    st.title("🗑️ Gearchiveerde / Gesloten Leads")
-    st.caption("Hier staan alle gearchiveerde leads. Gebruik het filter om specifiek te zoeken op status of aanwezigheid.")
+elif page_selection == "🗑️ Closed / Archived":
+    st.title("🗑️ Archived & Closed Leads")
+    st.caption("Manage archived leads and filter by online presence or closure status.")
 
     conn = get_db_connection()
     df_deleted = pd.read_sql_query("SELECT * FROM leads WHERE is_deleted = 1 ORDER BY id DESC", conn)
     conn.close()
 
     if df_deleted.empty:
-        st.info("Er zijn momenteel geen gearchiveerde of gesloten leads.")
+        st.info("No archived leads found.")
     else:
         df_deleted["is_deleted"] = df_deleted["is_deleted"].astype(bool)
 
-        # FILTER OP AANWEZIGHEID IN HET ARCHIEF
-        presence_options = ["Alle Aanwezigheidsstatussen"] + sorted(list(set(df_deleted["online_presence"].dropna().tolist())))
-        selected_presence = st.selectbox("🔍 Filter Archief op Aanwezigheid / Status:", presence_options)
+        presence_options = ["All Statuses"] + sorted(list(set(df_deleted["online_presence"].dropna().tolist())))
+        selected_presence = st.selectbox("🔍 Filter Archive by Status:", presence_options)
 
         filtered_deleted_df = df_deleted.copy()
-        if selected_presence != "Alle Aanwezigheidsstatussen":
+        if selected_presence != "All Statuses":
             filtered_deleted_df = filtered_deleted_df[filtered_deleted_df["online_presence"] == selected_presence]
 
-        st.write(f"Gearchiveerde leads getoond: **{len(filtered_deleted_df)}**")
+        st.write(f"Archived leads displayed: **{len(filtered_deleted_df)}**")
 
         edited_deleted_df = st.data_editor(
             filtered_deleted_df,
             column_order=["is_deleted", "online_presence", "naam", "stad", "niche", "telefoon", "notes"],
             column_config={
                 "is_deleted": st.column_config.CheckboxColumn(
-                    "Gearchiveerd?",
-                    help="Vink uit om de lead te herstellen en terug op te nemen in het hoofddashboard"
+                    "Archived?",
+                    help="Uncheck to restore this lead back to the main dashboard"
                 ),
                 "online_presence": st.column_config.SelectboxColumn(
-                    "Aanwezigheid / Status",
+                    "Online Presence / Status",
                     options=[
                         "-",
-                        "❌ Geen van beide",
-                        "🌐 Wel website, geen profiel",
-                        "👤 Wel profiel, geen website",
-                        "✔️ Beide aanwezig",
-                        "⏳ Tijdelijk gesloten",
-                        "⛔ Permanent gesloten"
+                        "❌ Neither Website nor Profile",
+                        "🌐 Has Website, No Social Profile",
+                        "👤 Has Profile, No Website",
+                        "✔️ Both Present",
+                        "⏳ Temporarily Closed",
+                        "⛔ Permanently Closed"
                     ]
                 ),
-                "naam": st.column_config.TextColumn("Bedrijfsnaam", disabled=True),
-                "stad": st.column_config.TextColumn("Stad", disabled=True),
+                "naam": st.column_config.TextColumn("Company Name", disabled=True),
+                "stad": st.column_config.TextColumn("City", disabled=True),
                 "niche": st.column_config.TextColumn("Niche", disabled=True),
-                "telefoon": st.column_config.TextColumn("Telefoon", disabled=True),
-                "notes": st.column_config.TextColumn("Opmerkingen")
+                "telefoon": st.column_config.TextColumn("Phone", disabled=True),
+                "notes": st.column_config.TextColumn("Notes")
             },
             disabled=["id", "naam", "stad", "niche", "telefoon", "adres", "status", "gecheckt_op", "maps_url", "sterren", "aantal_reviews", "eigen_score", "gebeld", "call_result"],
             hide_index=True,
@@ -315,7 +298,7 @@ elif page_selection == "🗑️ Gesloten / Verwijderd":
             key="deleted_editor"
         )
 
-        if st.button("💾 Archief Wijzigingen Opslaan"):
+        if st.button("💾 Save Archive Changes"):
             conn = get_db_connection()
             cursor = conn.cursor()
             for idx, row in edited_deleted_df.iterrows():
@@ -327,40 +310,37 @@ elif page_selection == "🗑️ Gesloten / Verwijderd":
                 """, (deleted_val, row["online_presence"], row["notes"], row["id"]))
             conn.commit()
             conn.close()
-            st.success("Archief bijgewerkt!")
+            st.success("Archive updated successfully!")
             st.rerun()
 
-# ---------------------------------------------------------
-# PAGINA 3: INSTELLINGEN
-# ---------------------------------------------------------
-elif page_selection == "⚙️ Niches & Steden":
-    st.title("⚙️ Beheer Zoekopdrachten")
+elif page_selection == "⚙️ Niches & Cities":
+    st.title("⚙️ Search Configuration")
     col1, col2 = st.columns(2)
 
     with col1:
-        st.subheader("📍 Steden / Locaties")
-        new_city = st.text_input("Nieuwe stad:")
-        if st.button("➕ Stad Toevoegen"):
+        st.subheader("📍 Target Cities")
+        new_city = st.text_input("Add new city:")
+        if st.button("➕ Add City"):
             if new_city.strip():
                 formatted_city = new_city.strip().capitalize()
                 if formatted_city not in cities:
                     cities.append(formatted_city)
                     save_json(CITIES_PATH, cities)
-                    st.success(f"Stad {formatted_city} toegevoegd!")
+                    st.success(f"City '{formatted_city}' added!")
                     st.rerun()
 
         st.write(", ".join(cities))
 
     with col2:
-        st.subheader("🛠️ Niches (OSM Tags)")
-        new_niche = st.text_input("Nieuwe niche:")
-        if st.button("➕ Niche Toevoegen"):
+        st.subheader("🛠️ Target Niches (OSM Tags)")
+        new_niche = st.text_input("Add new niche:")
+        if st.button("➕ Add Niche"):
             if new_niche.strip():
                 formatted_niche = new_niche.strip().lower()
                 if formatted_niche not in niches:
                     niches.append(formatted_niche)
                     save_json(NICHES_PATH, niches)
-                    st.success(f"Niche {formatted_niche} toegevoegd!")
+                    st.success(f"Niche '{formatted_niche}' added!")
                     st.rerun()
 
         st.write(", ".join(niches))

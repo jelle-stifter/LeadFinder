@@ -40,7 +40,7 @@ def init_db():
             adres TEXT,
             stad TEXT,
             niche TEXT,
-            status TEXT DEFAULT 'nieuw',
+            status TEXT DEFAULT 'new',
             gecheckt_op TEXT,
             gebeld INTEGER DEFAULT 0,
             call_result TEXT DEFAULT '-',
@@ -49,6 +49,8 @@ def init_db():
             sterren REAL DEFAULT 0.0,
             aantal_reviews INTEGER DEFAULT 0,
             eigen_score INTEGER DEFAULT 50,
+            is_deleted INTEGER DEFAULT 0,
+            online_presence TEXT DEFAULT '-',
             UNIQUE(naam, stad)
         )
     ''')
@@ -115,8 +117,8 @@ def save_lead(naam, stad, niche, telefoon, adres, maps_url):
     c = conn.cursor()
     try:
         c.execute('''
-            INSERT INTO leads (naam, stad, niche, telefoon, adres, maps_url, sterren, aantal_reviews, eigen_score, gebeld, call_result, notes)
-            VALUES (?, ?, ?, ?, ?, ?, 0.0, 0, 50, 0, '-', '')
+            INSERT INTO leads (naam, stad, niche, telefoon, adres, maps_url, sterren, aantal_reviews, eigen_score, gebeld, call_result, notes, is_deleted, online_presence)
+            VALUES (?, ?, ?, ?, ?, ?, 0.0, 0, 50, 0, '-', '', 0, '-')
         ''', (naam, stad, niche, telefoon, adres, maps_url))
         conn.commit()
         logging.info(f"==> LEAD FOUND: {naam} in {stad}")
@@ -127,7 +129,7 @@ def save_lead(naam, stad, niche, telefoon, adres, maps_url):
 
 def run_worker():
     init_db()
-    logging.info("Worker opgestart voor het verzamelen van leads.")
+    logging.info("Worker started collecting leads.")
     
     while True:
         cities = load_json(CITIES_PATH, DEFAULT_CITIES)
@@ -147,7 +149,7 @@ def run_worker():
                     if 'website' in tags or 'contact:website' in tags:
                         continue
                         
-                    telefoon = tags.get('phone') or tags.get('contact:phone') or 'Geen telefoon'
+                    telefoon = tags.get('phone') or tags.get('contact:phone') or 'No phone'
                     street = tags.get('addr:street', '')
                     housenumber = tags.get('addr:housenumber', '')
                     adres = f"{street} {housenumber}".strip() or city
@@ -160,7 +162,7 @@ def run_worker():
                     time.sleep(1)
                 time.sleep(2)
         
-        logging.info("Scan-ronde afgerond. 1 uur pauze...")
+        logging.info("Scanning round completed. Sleeping for 1 hour...")
         time.sleep(3600)
 
 if __name__ == "__main__":
