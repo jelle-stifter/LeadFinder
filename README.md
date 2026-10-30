@@ -42,7 +42,7 @@ Add Target Cities: Enter the names of the cities/regions you want to search (e.g
 
 Add Target Niches: Enter OpenStreetMap craft/shop/office/amenity tags (e.g., carpenter, electrician, plumber, painter, tiler).
 
-The background worker automatically loads these configurations from cities.json and niches.json.
+Remove Unwanted Targets: Select any city or niche under the current list dropdowns and click 🗑️ Remove to delete them from cities.json or niches.json.
 
 Step 3: Autonomous Scanning Process
 The background worker continuously scans the specified cities and niches via Overpass API.
@@ -60,7 +60,13 @@ Click the 📍 Maps link for any lead. This opens the exact company search direc
 
 Inspect the business listing for Google rating, total review count, and overall business viability.
 
-Return to the dashboard table and directly enter Rating, Reviews count, and Score (0-100).
+Return to the dashboard table and directly enter:
+
+Rating (e.g., 4.8 ⭐)
+
+Reviews count
+
+Score (0-100): Your personal evaluation of the conversion potential.
 
 Step 5: Managing Outreach & Online Presence
 Calling Workflow: After attempting outreach, check the Called? box and update the Call Status dropdown.
